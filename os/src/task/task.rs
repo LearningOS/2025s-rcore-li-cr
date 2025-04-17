@@ -4,7 +4,6 @@ use super::TaskContext;
 use super::SYSCALL_MAX_ID;
 /// The task control block (TCB) of a task.
 #[derive(Copy, Clone)]
-#[derive(Debug)]
 pub struct TaskControlBlock {
     /// The task status in it's lifecycle
     pub task_status: TaskStatus,
@@ -16,7 +15,6 @@ pub struct TaskControlBlock {
 
 /// The status of a task
 #[derive(Copy, Clone, PartialEq)]
-#[derive(Debug)]
 pub enum TaskStatus {
     /// uninitialized
     UnInit,
