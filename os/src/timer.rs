@@ -31,5 +31,5 @@ pub fn get_time_us() -> usize {
 
 /// Set the next timer interrupt
 pub fn set_next_trigger() {
-    set_timer(get_time() + CLOCK_FREQ / TICKS_PER_SEC);
+    set_timer(get_time() + CLOCK_FREQ / TICKS_PER_SEC); // CLOCK_FREQ = 1s 内 time 增加多少。/ 100 表示 10ms 增加的量
 }

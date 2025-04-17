@@ -14,7 +14,7 @@ mod switch;
 #[allow(clippy::module_inception)]
 mod task;
 
-use crate::config::MAX_APP_NUM;
+use crate::config::{MAX_APP_NUM, SYSCALL_MAX_ID};
 use crate::loader::{get_num_app, init_app_cx};
 use crate::sync::UPSafeCell;
 use lazy_static::*;
@@ -54,6 +54,7 @@ lazy_static! {
         let mut tasks = [TaskControlBlock {
             task_cx: TaskContext::zero_init(),
             task_status: TaskStatus::UnInit,
+            task_syscall_count: [0; SYSCALL_MAX_ID],
         }; MAX_APP_NUM];
         for (i, task) in tasks.iter_mut().enumerate() {
             task.task_cx = TaskContext::goto_restore(init_app_cx(i));
@@ -133,6 +134,24 @@ impl TaskManager {
             // go back to user mode
         } else {
             panic!("All applications completed!");
+        }
+    }
+    /// modify TaskControlBlock.count
+    pub fn task_syscall_count_inc(&self, syscall_id: usize){
+        let mut inner = self.inner.exclusive_access();
+        let current = inner.current_task;
+        if syscall_id < SYSCALL_MAX_ID {
+            inner.tasks[current].task_syscall_count[syscall_id] += 1;
+        }
+    }
+    /// query TaskControlBlock.count
+    pub fn task_syscall_count_get(&self, syscall_id: usize) -> isize {
+        let inner = self.inner.exclusive_access();
+        let current = inner.current_task;
+        if syscall_id < SYSCALL_MAX_ID {
+            inner.tasks[current].task_syscall_count[syscall_id] as isize
+        } else {
+            -1
         }
     }
 }

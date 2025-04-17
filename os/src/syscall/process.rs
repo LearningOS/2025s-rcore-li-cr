@@ -38,8 +38,29 @@ pub fn sys_get_time(ts: *mut TimeVal, _tz: usize) -> isize {
     0
 }
 
+use crate::task::TASK_MANAGER;
 // TODO: implement the syscall
 pub fn sys_trace(_trace_request: usize, _id: usize, _data: usize) -> isize {
-    trace!("kernel: sys_trace");
-    -1
+    match _trace_request {
+        0 => {
+            unsafe {
+                (*(_id as *const u8)).into()
+            }
+        }
+        1 => {
+            unsafe {
+                *(_id as *mut u8) = _data as u8;
+                0
+            }
+        }
+        2 => {
+            TASK_MANAGER
+                .task_syscall_count_get(_id)
+        }
+        _ => {
+            trace!("kernel: sys_trace");
+            -1
+        }
+        
+    }
 }

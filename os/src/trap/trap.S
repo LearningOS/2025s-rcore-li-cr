@@ -9,6 +9,9 @@
     .globl __alltraps
     .globl __restore
     .align 2
+
+# 进入前 sp 为用户栈指针，sscratch 为内核栈指针。
+# 原因：系统调用 没改变sp，sscratch 自从第一次switch-> restore 后 都为内核栈指针了。
 __alltraps:
     csrrw sp, sscratch, sp
     # now sp->kernel stack, sscratch->user stack
@@ -37,6 +40,7 @@ __alltraps:
     mv a0, sp
     call trap_handler
 
+# 使用 sp的数据返回用户态。
 __restore:
     # now sp->kernel stack(after allocated), sscratch->user stack
     # restore sstatus/sepc
