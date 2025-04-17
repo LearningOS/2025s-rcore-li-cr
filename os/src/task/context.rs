@@ -18,10 +18,10 @@ pub struct TaskContext {
 pub struct TaskInformation{
     /// The syscall count of the task
     pub task_syscall_count : [usize; SYSCALL_MAX_ID],
-    /// User_State_time
-    pub user_time : usize,
-    /// System time
-    pub kernel_time : usize,
+    /// User_State_time, Kernel_State_time
+    pub task_time: [usize; 2],
+    /// Time_flag
+    pub task_time_flag: [usize; 2],
 }
 
 impl TaskContext {
@@ -51,8 +51,23 @@ impl TaskInformation {
     pub fn new() -> Self {
         Self {
             task_syscall_count: [0; SYSCALL_MAX_ID],
-            user_time : 0,
-            kernel_time : 0
+            task_time: [0; 2],
+            task_time_flag: [0; 2],
         }
+    }
+    /// add syscall count
+    /// 0: user time, 1: kernel time
+    /// 00 01 10 11
+    pub fn timer(&mut self, flag: usize) {
+        // 0: user time, 1: kernel time
+        
+        let fl = &mut self.task_time_flag[0];
+        
+        let f: usize = crate::timer::get_time();
+        
+        if flag <= 1{
+            self.task_time[flag] += f - *fl;
+        }
+        *fl = f;
     }
 }
