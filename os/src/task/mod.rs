@@ -135,11 +135,6 @@ impl TaskManager {
             let current_task_cx_ptr = &mut inner.tasks[current].task_cx as *mut TaskContext;
             let next_task_cx_ptr = &inner.tasks[next].task_cx as *const TaskContext;
             drop(inner);
-            // before this, we should drop local variables that must be dropped manually
-            // if current != next{
-            //     println!("Switching from task {} to task {}", current, next);
-            // // }
-            // 
             unsafe {
                 __switch(current_task_cx_ptr, next_task_cx_ptr);
             }
@@ -151,6 +146,12 @@ impl TaskManager {
                 let task = &self.inner.exclusive_access().tasks[i];
                 println!("task {} syscall count: {:?}", i, task.task_info.task_time);
             }
+            
+            extern "C" {
+                fn _sum_time();
+            }
+            let x =   unsafe { (_sum_time as usize as *const usize).read_volatile() };
+            println!("sum time:\n{}[CLOCK_NUMBER]\n{}[us]\n{}[SYSTM_CLOCK_FREQ]",x, x * 1_000_000 / crate::config::CLOCK_FREQ, crate::config::CLOCK_FREQ );
             panic!("All applications completed!");
         }
     }

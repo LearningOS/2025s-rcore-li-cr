@@ -7,7 +7,13 @@
 .endm
     .section .text
     .globl __switch
+    .global _sum_time
+_sum_time:
+    .quad 0
 __switch:
+    # 读取 time 到 a1
+    csrr a2, time
+
     # __switch(
     #     current_task_cx_ptr: *mut TaskContext,
     #     next_task_cx_ptr: *const TaskContext
@@ -30,5 +36,12 @@ __switch:
     .endr
     # restore kernel stack of next task
     ld sp, 8(a1)
+
+    csrr a3, time
+    sub a3, a3, a2          # a3 = a3 - a2 = elapsed time
+    la t0, _sum_time        # t0 = &_sum_time
+    ld t1, 0(t0)            # t1 = *_sum_time
+    add t1, t1, a3          # t1 += elapsed
+    sd t1, 0(t0)            # *_sum_time = t1
     ret
 
