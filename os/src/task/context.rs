@@ -1,4 +1,5 @@
 //! Implementation of [`TaskContext`]
+use super::SYSCALL_MAX_ID;
 
 #[derive(Copy, Clone)]
 #[repr(C)]
@@ -10,6 +11,17 @@ pub struct TaskContext {
     sp: usize,
     /// s0-11 register, callee saved
     s: [usize; 12],
+}
+#[derive(Copy, Clone)]
+#[repr(C)]
+/// task context structure containing some informations
+pub struct TaskInformation{
+    /// The syscall count of the task
+    pub task_syscall_count : [usize; SYSCALL_MAX_ID],
+    /// User_State_time
+    pub user_time : usize,
+    /// System time
+    pub kernel_time : usize,
 }
 
 impl TaskContext {
@@ -30,6 +42,17 @@ impl TaskContext {
             ra: __restore as usize,
             sp: kstack_ptr,
             s: [0; 12],
+        }
+    }
+}
+
+impl TaskInformation {
+    /// new task information
+    pub fn new() -> Self {
+        Self {
+            task_syscall_count: [0; SYSCALL_MAX_ID],
+            user_time : 0,
+            kernel_time : 0
         }
     }
 }
