@@ -128,6 +128,9 @@ impl TaskManager {
             let next_task_cx_ptr = &inner.tasks[next].task_cx as *const TaskContext;
             drop(inner);
             // before this, we should drop local variables that must be dropped manually
+            // if current != next{
+            //     println!("Switching from task {} to task {}", current, next);
+            // }
             unsafe {
                 __switch(current_task_cx_ptr, next_task_cx_ptr);
             }
