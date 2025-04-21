@@ -157,6 +157,18 @@ impl PageTable {
     }
 }
 
+/// addr flag dis use virtaddr
+pub fn addr_flag(token: usize, ptr: usize, flag : PTEFlags) -> bool{
+    // println!("test token 0x{:x} 0x{:x} {:?}", token, ptr, flag);
+    // println!("{:?}", VirtAddr::from(ptr).floor());
+    if let Some(entry) = PageTable::from_token(token).translate( VirtAddr::from(ptr).floor())
+    {
+        // println!("entry : {:?}", entry.flags());
+        return entry.flags().contains(flag);
+    }
+    false
+}
+
 /// Translate&Copy a ptr[u8] array with LENGTH len to a mutable u8 Vec through page table
 pub fn translated_byte_buffer(token: usize, ptr: *const u8, len: usize) -> Vec<&'static mut [u8]> {
     let page_table = PageTable::from_token(token);

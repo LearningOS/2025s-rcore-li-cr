@@ -262,6 +262,44 @@ impl MemorySet {
             false
         }
     }
+    /// test framed can insert
+    pub fn can_insert_framed_area(
+        &mut self,
+        start_va: VirtAddr,
+        end_va: VirtAddr,
+    ) -> bool { 
+        let start_vpn: VirtPageNum = start_va.floor();
+        let end_vpn: VirtPageNum = end_va.ceil();
+        let vpn_range = VPNRange::new(start_vpn, end_vpn);
+         for (_i, memset) in self.areas.iter().enumerate(){
+            if memset.vpn_range.crox(&vpn_range){
+                return false;
+            }
+        }
+        true
+    }
+    /// delete framed area
+    pub fn delete_framed_area(
+        &mut self,
+        start_va: VirtAddr,
+        _end_va: VirtAddr,
+        permission: MapPermission,
+    ) -> bool { 
+        let start_vpn: VirtPageNum = start_va.floor();
+        let end_vpn: VirtPageNum = _end_va.ceil();
+        // let vpn_range = VPNRange::new(start_vpn, end_vpn);
+        for (_i, memset) in self.areas.iter_mut().enumerate(){
+            // println!("{:?} {:?}", memset.vpn_range.get_start(), memset.vpn_range.get_end());
+            // println!(" {:?} {:?}", start_vpn, end_vpn);
+            if memset.vpn_range.get_start() == start_vpn && memset.vpn_range.get_end() == end_vpn
+            && memset.map_perm.contains(permission){
+                memset.unmap(&mut self.page_table);
+                self.areas.remove(_i);
+                return true;
+            }
+        }
+        false
+    }
 }
 /// map area structure, controls a contiguous piece of virtual memory
 pub struct MapArea {

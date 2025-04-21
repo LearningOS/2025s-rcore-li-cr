@@ -1,4 +1,4 @@
-DOCKER_NAME ?= rcore-tutorial-v3
+DOCKER_NAME ?= rcore-tutorial-v3:lcr
 .PHONY: docker build_docker
 	
 docker:
