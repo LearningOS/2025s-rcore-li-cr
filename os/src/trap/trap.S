@@ -54,8 +54,7 @@ __restore:
     
     # switch to user space
     # csrw satp, a1
-    
-    sfence.vma
+    # sfence.vma
     
     csrw sscratch, a0
 

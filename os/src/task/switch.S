@@ -37,7 +37,7 @@ __switch:
     # restore satp from stap 字段
     ld   t0, 14*8(a1)
     csrw satp, t0
-
+    sfence.vma
     # restore kernel stack of next task
     ld sp, 8(a1)
     ret
