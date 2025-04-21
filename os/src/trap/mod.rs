@@ -14,7 +14,7 @@
 
 mod context;
 
-use crate::config::{TRAMPOLINE, TRAP_CONTEXT_BASE};
+use crate::config::TRAMPOLINE;
 use crate::syscall::syscall;
 use crate::task::{
     current_trap_cx, current_user_token, exit_current_and_run_next, suspend_current_and_run_next,
@@ -102,7 +102,7 @@ pub fn trap_handler() -> ! {
 /// finally, jump to new addr of __restore asm function
 pub fn trap_return() -> ! {
     set_user_trap_entry();
-    let trap_cx_ptr = TRAP_CONTEXT_BASE;
+    let trap_cx_ptr = current_trap_cx();
     let user_satp = current_user_token();
     extern "C" {
         fn __alltraps();

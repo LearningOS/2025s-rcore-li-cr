@@ -5,7 +5,7 @@ use super::{PTEFlags, PageTable, PageTableEntry};
 use super::{PhysAddr, PhysPageNum, VirtAddr, VirtPageNum};
 use super::{StepByOne, VPNRange};
 use crate::config::{
-    KERNEL_STACK_SIZE, MEMORY_END, PAGE_SIZE, TRAMPOLINE, TRAP_CONTEXT_BASE, USER_STACK_SIZE,
+    KERNEL_STACK_SIZE, MEMORY_END, PAGE_SIZE, TRAMPOLINE, USER_STACK_SIZE,
 };
 use crate::sync::UPSafeCell;
 use alloc::collections::BTreeMap;
@@ -44,6 +44,13 @@ impl MemorySet {
     pub fn new_bare() -> Self {
         Self {
             page_table: PageTable::new(),
+            areas: Vec::new(),
+        }
+    }
+    /// create new memset from a exist first PageTable
+    pub fn new_from_ppn(ppn : PhysPageNum) -> Self{
+        Self {
+            page_table: PageTable::new_from_ppn(ppn),
             areas: Vec::new(),
         }
     }
@@ -146,9 +153,12 @@ impl MemorySet {
     /// Include sections in elf and trampoline and TrapContext and user stack,
     /// also returns user_sp_base and entry point.
     pub fn from_elf(elf_data: &[u8]) -> (Self, usize, usize) {
-        let mut memory_set = Self::new_bare();
+        // let mut memory_set = Self::new_bare();
+        let kernel_token = KERNEL_SPACE.exclusive_access().page_table.token();
+        let mut memory_set = Self::new_from_ppn(PhysPageNum::from(kernel_token));
+        // new_from_ppn
         // map trampoline
-        memory_set.map_trampoline();
+        // memory_set.map_trampoline();
         // map program headers of elf, with U flag
         let elf = xmas_elf::ElfFile::new(elf_data).unwrap();
         let elf_header = elf.header;
@@ -161,6 +171,7 @@ impl MemorySet {
             if ph.get_type().unwrap() == xmas_elf::program::Type::Load {
                 let start_va: VirtAddr = (ph.virtual_addr() as usize).into();
                 let end_va: VirtAddr = ((ph.virtual_addr() + ph.mem_size()) as usize).into();
+                info!("app : [{:?}, {:?})", start_va, end_va);
                 let mut map_perm = MapPermission::U;
                 let ph_flags = ph.flags();
                 if ph_flags.is_read() {
@@ -206,15 +217,15 @@ impl MemorySet {
             None,
         );
         // map TrapContext
-        memory_set.push(
-            MapArea::new(
-                TRAP_CONTEXT_BASE.into(),
-                TRAMPOLINE.into(),
-                MapType::Framed,
-                MapPermission::R | MapPermission::W,
-            ),
-            None,
-        );
+        // memory_set.push(
+        //     MapArea::new(
+        //         TRAP_CONTEXT_BASE.into(),
+        //         TRAMPOLINE.into(),
+        //         MapType::Framed,
+        //         MapPermission::R | MapPermission::W,
+        //     ),
+        //     None,
+        // );
         (
             memory_set,
             user_stack_top,

@@ -21,6 +21,11 @@ __switch:
         SAVE_SN %n
         .set n, n + 1
     .endr
+
+    # save satp into stap 字段
+    csrr t0, satp
+    sd   t0, 14*8(a0)   
+
     # restore ra & s0~s11 of next execution
     ld ra, 0(a1)
     .set n, 0
@@ -28,6 +33,11 @@ __switch:
         LOAD_SN %n
         .set n, n + 1
     .endr
+
+    # restore satp from stap 字段
+    ld   t0, 14*8(a1)
+    csrw satp, t0
+
     # restore kernel stack of next task
     ld sp, 8(a1)
     ret

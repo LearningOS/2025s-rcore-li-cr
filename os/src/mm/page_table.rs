@@ -88,6 +88,18 @@ impl PageTable {
             frames: vec![frame],
         }
     }
+    /// copy first level of ppn to construct this PageTable
+    pub fn new_from_ppn(ppn:PhysPageNum) -> Self{
+        let frame = frame_alloc().unwrap();
+        let src_pages = ppn.get_bytes_array();           // &[u8]
+        let dst_pages = frame.ppn.get_bytes_array();     // &mut [u8]
+        // 3. 拷贝全部字节
+        dst_pages[..src_pages.len()].copy_from_slice(src_pages);
+        PageTable {
+            root_ppn: frame.ppn,
+            frames: vec![frame],
+        }
+    }
     /// Temporarily used to get arguments from user space.
     pub fn from_token(satp: usize) -> Self {
         Self {

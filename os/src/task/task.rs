@@ -3,9 +3,8 @@
 use alloc::collections::btree_map::BTreeMap;
 
 use super::TaskContext;
-use crate::config::TRAP_CONTEXT_BASE;
 use crate::mm::{
-    kernel_stack_position, MapPermission, MemorySet, PhysPageNum, VirtAddr, KERNEL_SPACE,
+    kernel_stack_position, MapPermission, MemorySet, VirtAddr, KERNEL_SPACE,
 };
 use crate::trap::{trap_handler, TrapContext};
 
@@ -21,7 +20,7 @@ pub struct TaskControlBlock {
     pub memory_set: MemorySet,
 
     /// The phys page number of trap context
-    pub trap_cx_ppn: PhysPageNum,
+    // pub trap_cx_ppn: PhysPageNum,
 
     /// The size(top addr) of program which is loaded from elf file
     pub base_size: usize,
@@ -33,13 +32,16 @@ pub struct TaskControlBlock {
     pub program_brk: usize,
 
     /// count system call count
-    pub task_sys_count : BTreeMap<usize, usize>
+    pub task_sys_count : BTreeMap<usize, usize>,
+
+    /// Trap Context ; I don't can push it to USER_KERNEL_STACK
+    pub trap_context : TrapContext,
 }
 
 impl TaskControlBlock {
     /// get the trap context
     pub fn get_trap_cx(&self) -> &'static mut TrapContext {
-        self.trap_cx_ppn.get_mut()
+        unsafe { (&self.trap_context as *const TrapContext as *mut TrapContext).as_mut().unwrap() }
     }
     /// get the user token
     pub fn get_user_token(&self) -> usize {
@@ -49,10 +51,10 @@ impl TaskControlBlock {
     pub fn new(elf_data: &[u8], app_id: usize) -> Self {
         // memory_set with elf program headers/trampoline/trap context/user stack
         let (memory_set, user_sp, entry_point) = MemorySet::from_elf(elf_data);
-        let trap_cx_ppn = memory_set
-            .translate(VirtAddr::from(TRAP_CONTEXT_BASE).into())
-            .unwrap()
-            .ppn();
+        // let trap_cx_ppn = memory_set
+        //     .translate(VirtAddr::from(TRAP_CONTEXT_BASE).into())
+        //     .unwrap()
+        //     .ppn();
         let task_status = TaskStatus::Ready;
         // map a kernel-stack in kernel space
         let (kernel_stack_bottom, kernel_stack_top) = kernel_stack_position(app_id);
@@ -63,23 +65,20 @@ impl TaskControlBlock {
         );
         let task_control_block = Self {
             task_status,
-            task_cx: TaskContext::goto_trap_return(kernel_stack_top),
+            task_cx: TaskContext::goto_trap_return(kernel_stack_top, memory_set.token()),
             memory_set,
-            trap_cx_ppn,
-            base_size: user_sp,
-            heap_bottom: user_sp,
-            program_brk: user_sp,
-            task_sys_count: BTreeMap::new()
+            base_size: user_sp, // 无用
+            heap_bottom: user_sp, // 无用 
+            program_brk: user_sp, // 无用
+            task_sys_count: BTreeMap::new(),
+            trap_context : TrapContext::app_init_context(
+                entry_point,
+                user_sp, 
+                KERNEL_SPACE.exclusive_access().token(), // 没用
+                kernel_stack_top,
+                trap_handler as usize,
+            ),
         };
-        // prepare TrapContext in user space
-        let trap_cx = task_control_block.get_trap_cx();
-        *trap_cx = TrapContext::app_init_context(
-            entry_point,
-            user_sp,
-            KERNEL_SPACE.exclusive_access().token(),
-            kernel_stack_top,
-            trap_handler as usize,
-        );
         task_control_block
     }
     /// change the location of the program break. return None if failed.

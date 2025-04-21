@@ -35,6 +35,7 @@ __alltraps:
 
     # load kernel_satp into t0
     ld t0, 34*8(sp)
+    
     # load trap_handler into t1
     ld t1, 36*8(sp)
 
@@ -42,7 +43,8 @@ __alltraps:
     ld sp, 35*8(sp)
     
     # switch to kernel space
-    csrw satp, t0
+    # csrw satp, t0
+    
     sfence.vma
     # jump to trap_handler
     jr t1
@@ -51,7 +53,8 @@ __restore:
     # a0: *TrapContext in user space(Constant); a1: user space token
     
     # switch to user space
-    csrw satp, a1
+    # csrw satp, a1
+    
     sfence.vma
     
     csrw sscratch, a0
