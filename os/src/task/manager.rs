@@ -23,7 +23,13 @@ impl TaskManager {
     }
     /// Take a process out of the ready queue
     pub fn fetch(&mut self) -> Option<Arc<TaskControlBlock>> {
-        self.ready_queue.pop_front()
+        let (min_idx, _) = self.ready_queue
+        .iter()
+        .enumerate()
+        .min_by_key(|&(_, task)| task.get_stride())?; // 假设你有 inner_exclusive()
+
+     // 从 VecDeque 中移除该任务（效率比 pop_front 低，但可接受）
+        Some(self.ready_queue.remove(min_idx).unwrap())
     }
 }
 

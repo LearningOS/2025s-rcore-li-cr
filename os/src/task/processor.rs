@@ -64,6 +64,7 @@ pub fn run_tasks() {
             // release coming task_inner manually
             drop(task_inner);
             // release coming task TCB manually
+            task.up_stride();
             processor.current = Some(task);
             // release processor manually
             drop(processor);
