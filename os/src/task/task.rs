@@ -97,6 +97,7 @@ impl Default for TaskControlBlockInner {
             parent: None,
             children: Vec::new(),
             exit_code: 0,
+            fd_table: Vec::new(),
             heap_bottom: 0,
             program_brk: 0,
             priority: 16, // 这里设置默认优先级
