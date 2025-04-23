@@ -116,6 +116,12 @@ pub fn frame_dealloc(ppn: PhysPageNum) {
     FRAME_ALLOCATOR.exclusive_access().dealloc(ppn);
 }
 
+/// get can alloc ppn num
+pub fn frame_left_ppn() -> usize{
+    let inner = FRAME_ALLOCATOR.exclusive_access();
+    return inner.end-inner.current + inner.recycled.len();
+}
+
 #[allow(unused)]
 /// a simple test for frame allocator
 pub fn frame_allocator_test() {

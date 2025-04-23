@@ -2,12 +2,16 @@
 //!
 use alloc::sync::Arc;
 
+use core::slice;
+ 
+use crate::mm::{translated_byte_buffer, MapPermission, PTEFlags};
+use crate::task::{current_user_token, delete_framed_area, exit_current_and_run_next, insert_framed_area, suspend_current_and_run_next};
+use crate::timer::get_time_us;
 use crate::{
     fs::{open_file, OpenFlags},
     mm::{translated_refmut, translated_str},
     task::{
-        add_task, current_task, current_user_token, exit_current_and_run_next,
-        suspend_current_and_run_next,
+        add_task, current_task
     },
 };
 
@@ -110,7 +114,43 @@ pub fn sys_get_time(_ts: *mut TimeVal, _tz: usize) -> isize {
         "kernel:pid[{}] sys_get_time NOT IMPLEMENTED",
         current_task().unwrap().pid.0
     );
-    -1
+    let token = current_user_token();
+    // 先检查用户指针可写、可用户访问
+    let siz = core::mem::size_of::<TimeVal>();
+    let start = _ts as usize;
+    let end   = start + siz - 1;
+    if !crate::mm::addr_flag(token, start, PTEFlags::W | PTEFlags::U)
+       || !crate::mm::addr_flag(token, end,   PTEFlags::W | PTEFlags::U)
+    {
+        return -1;
+    }
+
+    // 准备要写回用户的结构
+    let now = get_time_us();
+    let tmp = TimeVal {
+        sec:  now / 1_000_000,
+        usec: now % 1_000_000,
+    };
+
+    let src: &[u8] = unsafe {
+        slice::from_raw_parts((&tmp as *const TimeVal) as *const u8, siz)
+    };
+    // 4. 拿到所有需要的用户页
+    let mut pages = translated_byte_buffer(token, _ts as *const u8, siz);
+    // 5. 分段拷贝
+    let mut copied = 0;
+    for (_i, page) in pages.iter_mut().enumerate() {
+        // 本页能写多少字节
+        let write_len = core::cmp::min(page.len(), siz - copied);
+        // 拷贝
+        page[..write_len]
+            .copy_from_slice(&src[copied..copied + write_len]);
+        copied += write_len;
+        if copied >= siz {
+            break;
+        }
+    }
+    0
 }
 
 /// YOUR JOB: Implement mmap.
@@ -119,7 +159,7 @@ pub fn sys_mmap(_start: usize, _len: usize, _port: usize) -> isize {
         "kernel:pid[{}] sys_mmap NOT IMPLEMENTED",
         current_task().unwrap().pid.0
     );
-    -1
+    insert_framed_area(_start, _len, _port)
 }
 
 /// YOUR JOB: Implement munmap.
@@ -128,7 +168,7 @@ pub fn sys_munmap(_start: usize, _len: usize) -> isize {
         "kernel:pid[{}] sys_munmap NOT IMPLEMENTED",
         current_task().unwrap().pid.0
     );
-    -1
+    delete_framed_area(_start,_len, MapPermission::U)
 }
 
 /// change data segment size
