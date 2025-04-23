@@ -227,6 +227,9 @@ where
     pub fn get_end(&self) -> T {
         self.r
     }
+    pub fn crox(&self, other : &SimpleRange<T>) -> bool{
+        return self.l < other.get_end() && self.r > other.get_start();
+    }
 }
 impl<T> IntoIterator for SimpleRange<T>
 where

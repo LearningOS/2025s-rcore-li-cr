@@ -8,13 +8,21 @@ use bitflags::*;
 bitflags! {
     /// page table entry flags
     pub struct PTEFlags: u8 {
+        /// Valid
         const V = 1 << 0;
+        /// Readable
         const R = 1 << 1;
+        /// Writable
         const W = 1 << 2;
+        /// eXecutable
         const X = 1 << 3;
+        /// User
         const U = 1 << 4;
+        /// Global
         const G = 1 << 5;
+        /// Accessed
         const A = 1 << 6;
+        /// Dirty
         const D = 1 << 7;
     }
 }
@@ -158,6 +166,18 @@ impl PageTable {
     pub fn token(&self) -> usize {
         8usize << 60 | self.root_ppn.0
     }
+}
+
+/// addr flag dis use virtaddr
+pub fn addr_flag(token: usize, ptr: usize, flag : PTEFlags) -> bool{
+    // println!("test token 0x{:x} 0x{:x} {:?}", token, ptr, flag);
+    // println!("{:?}", VirtAddr::from(ptr).floor());
+    if let Some(entry) = PageTable::from_token(token).translate( VirtAddr::from(ptr).floor())
+    {
+        // println!("entry : {:?}", entry.flags());
+        return entry.flags().contains(flag);
+    }
+    false
 }
 
 /// Translate&Copy a ptr[u8] array with LENGTH len to a mutable u8 Vec through page table

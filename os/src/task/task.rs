@@ -206,6 +206,9 @@ impl TaskControlBlock {
         // ---- release parent PCB
     }
 
+    /// spawn()
+    pub fn spawn()
+
     /// get pid of process
     pub fn getpid(&self) -> usize {
         self.pid.0

@@ -27,7 +27,7 @@ use lazy_static::*;
 pub use manager::{fetch_task, TaskManager};
 use switch::__switch;
 pub use task::{TaskControlBlock, TaskStatus};
-
+use crate::mm::{frame_left_ppn, MapPermission, VirtAddr};
 pub use context::TaskContext;
 pub use id::{kstack_alloc, pid_alloc, KernelStack, PidHandle};
 pub use manager::add_task;
@@ -114,4 +114,48 @@ lazy_static! {
 ///Add init process to the manager
 pub fn add_initproc() {
     add_task(INITPROC.clone());
+}
+
+/// insert framed area
+pub fn insert_framed_area(_start: usize, _len: usize, _port: usize) -> isize{
+    let start_va = VirtAddr::from(_start);
+    let en_va = VirtAddr::from(_start + _len);
+
+    // println!("{:x} {:x} {:?} {:?}", _start, _len, start_va, en_va);
+    if !start_va.aligned(){
+        return -1;
+    }
+    if VirtAddr::from(_len).ceil().0 > frame_left_ppn(){
+        return -1;
+    }
+    if (_port & !0x7 != 0) || _port & 0x7 == 0{
+        return -1;
+    }
+    let current = current_task().unwrap();
+    let mset = &mut current.inner_exclusive_access().memory_set;
+    if !mset.can_insert_framed_area(start_va, en_va){
+        return -1;
+    }
+    let mut mp : MapPermission = MapPermission::from_bits(((_port&0x7)<<1) as u8).unwrap();
+    mp |= MapPermission::U;
+    mset.insert_framed_area(start_va, en_va, mp);
+    return 0;
+}
+
+/// delete framed area 
+pub fn delete_framed_area(_start: usize, _len: usize, mp : MapPermission) -> isize{
+    let start_va = VirtAddr::from(_start);
+    let en_va = VirtAddr::from(_start + _len);
+    // println!("{:x} {:x} {:?} {:?}", _start, _len, start_va, en_va);
+    if !start_va.aligned(){
+        return -1;
+    }
+    // let mut inner = TASK_MANAGER.inner.exclusive_access();
+    // let current = inner.current_task;
+    let current = current_task().unwrap();
+    let mset = &mut current.inner_exclusive_access().memory_set;
+    if mset.delete_framed_area(start_va, en_va, mp){
+        return 0;
+    }
+    return -1;
 }
