@@ -6,7 +6,8 @@ use core::fmt::{Debug, Formatter, Result};
 /// Magic number for sanity check
 const EFS_MAGIC: u32 = 0x3b800001;
 /// The max number of direct inodes
-const INODE_DIRECT_COUNT: usize = 28;
+const INODE_DIRECT_COUNT: usize = 27;
+// const INODE_DIRECT_COUNT: usize = 28;
 /// The max length of inode name
 const NAME_LENGTH_LIMIT: usize = 27;
 /// The max number of indirect1 inodes
@@ -69,6 +70,7 @@ impl SuperBlock {
 }
 /// Type of a disk inode
 #[derive(PartialEq)]
+#[derive(Debug)]
 pub enum DiskInodeType {
     File,
     Directory,
@@ -80,11 +82,13 @@ type IndirectBlock = [u32; BLOCK_SZ / 4];
 type DataBlock = [u8; BLOCK_SZ];
 /// A disk inode
 #[repr(C)]
+#[derive(Debug)]
 pub struct DiskInode {
     pub size: u32,
     pub direct: [u32; INODE_DIRECT_COUNT],
     pub indirect1: u32,
     pub indirect2: u32,
+    pub nlink_number : usize,
     type_: DiskInodeType,
 }
 
@@ -96,6 +100,7 @@ impl DiskInode {
         self.direct.iter_mut().for_each(|v| *v = 0);
         self.indirect1 = 0;
         self.indirect2 = 0;
+        self.nlink_number = 1;
         self.type_ = type_;
     }
     /// Whether this inode is a directory

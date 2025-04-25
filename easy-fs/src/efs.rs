@@ -33,7 +33,9 @@ impl EasyFileSystem {
             ((inode_num * core::mem::size_of::<DiskInode>() + BLOCK_SZ - 1) / BLOCK_SZ) as u32;
         let inode_total_blocks = inode_bitmap_blocks + inode_area_blocks;
         let data_total_blocks = total_blocks - 1 - inode_total_blocks;
+        
         let data_bitmap_blocks = (data_total_blocks + 4096) / 4097;
+        
         let data_area_blocks = data_total_blocks - data_bitmap_blocks;
         let data_bitmap = Bitmap::new(
             (1 + inode_bitmap_blocks + inode_area_blocks) as usize,
@@ -121,6 +123,14 @@ impl EasyFileSystem {
             (inode_id % inodes_per_block) as usize * inode_size,
         )
     }
+    /// Get inode_id by block_id, block_offset
+    pub fn get_inode_id(&self, block_id: u32, block_offset: usize) -> u32 {
+        let inode_size = core::mem::size_of::<DiskInode>();
+        let inodes_per_block = (BLOCK_SZ / inode_size) as u32;
+        let inode_id = (block_id - self.inode_area_start_block) * inodes_per_block
+            + (block_offset / inode_size) as u32;
+        inode_id
+    }
     /// Get data block by id
     pub fn get_data_block_id(&self, data_block_id: u32) -> u32 {
         self.data_area_start_block + data_block_id
@@ -146,6 +156,14 @@ impl EasyFileSystem {
         self.data_bitmap.dealloc(
             &self.block_device,
             (block_id - self.data_area_start_block) as usize,
+        )
+    }    
+    /// Deallocate a inode block
+    pub fn dealloc_inode(&mut self, block_id:u32) {
+
+        self.inode_bitmap.dealloc(
+            &self.block_device,
+            (block_id - self.inode_area_start_block) as usize,
         )
     }
 }
