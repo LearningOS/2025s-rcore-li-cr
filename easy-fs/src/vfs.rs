@@ -153,7 +153,6 @@ impl Inode {
                 &self.block_device,
             );
         });
-
         let (block_id, block_offset) = fs.get_disk_inode_pos(new_inode_id);
         block_cache_sync_all();
         // return inode
@@ -219,23 +218,21 @@ impl Inode {
     pub fn unlink(&self, name : &str) -> isize {
         let mut fs = self.fs.lock();
        
-        let op2 = |root_inode: &DiskInode| {
+        let inodeid = self.read_disk_inode(|root_inode: &DiskInode| {
             // assert it is a directory
             assert!(root_inode.is_dir());
             // has the file been created?
             self.find_inode_id(name, root_inode)
-        };
-        let inodeid = self.read_disk_inode(op2);
+        });
         if inodeid.is_none() {
            return -1; 
         }
 
         
-        // self.modify_disk_inode(|disk_inode| {
-        //     self.remove_entry(name, disk_inode);       
-        //     block_cache_sync_all();
-        //     assert!(disk_inode.is_dir());
-        // });
+        self.modify_disk_inode(|disk_inode| {
+            self.remove_entry(name, disk_inode);       
+            assert!(disk_inode.is_dir());
+        });
 
         let (block_id, block_offset) = fs.get_disk_inode_pos(inodeid.unwrap());
         Self::new(
@@ -259,10 +256,9 @@ impl Inode {
                 for data_block in data_blocks_dealloc.into_iter() {
                     fs.dealloc_data(data_block);
                 }
-                fs.dealloc_inode(block_id)
+                fs.dealloc_inode(inodeid.unwrap())
             }
         });
-        
         block_cache_sync_all();
         // return inode
         0
@@ -292,6 +288,7 @@ impl Inode {
     }
     /// Write data to current inode
     pub fn write_at(&self, offset: usize, buf: &[u8]) -> usize {
+
         let mut fs = self.fs.lock();
         let size = self.modify_disk_inode(|disk_inode| {
             self.increase_size((offset + buf.len()) as u32, disk_inode, &mut fs);

@@ -51,10 +51,14 @@ pub fn sys_read(fd: usize, buf: *const u8, len: usize) -> isize {
 
 pub fn sys_open(path: *const u8, flags: u32) -> isize {
     trace!("kernel:pid[{}] sys_open", current_task().unwrap().pid.0);
+
     let task = current_task().unwrap();
     let token = current_user_token();
+
     let path = translated_str(token, path);
+
     if let Some(inode) = open_file(path.as_str(), OpenFlags::from_bits(flags).unwrap()) {
+
         let mut inner = task.inner_exclusive_access();
         let fd = inner.alloc_fd();
         inner.fd_table[fd] = Some(inode);
