@@ -1,10 +1,12 @@
+use core::slice;
+
 use crate::{
     fs::{open_file, OpenFlags},
-    mm::{translated_ref, translated_refmut, translated_str},
+    mm::{translated_byte_buffer, translated_ref, translated_refmut, translated_str, UserBuffer},
     task::{
         current_process, current_task, current_user_token, exit_current_and_run_next, pid2process,
         suspend_current_and_run_next, SignalFlags,
-    },
+    }, timer::get_time_us,
 };
 use alloc::{string::String, sync::Arc, vec::Vec};
 
@@ -156,7 +158,38 @@ pub fn sys_get_time(_ts: *mut TimeVal, _tz: usize) -> isize {
         "kernel:pid[{}] sys_get_time NOT IMPLEMENTED",
         current_task().unwrap().process.upgrade().unwrap().getpid()
     );
-    -1
+    let token = current_user_token();
+    // 先检查用户指针可写、可用户访问
+    let siz = core::mem::size_of::<TimeVal>();
+    let start = _ts as usize;
+    let end   = start + siz - 1;
+    if !crate::mm::addr_flag(token, start, crate::mm::PTEFlags::W | crate::mm::PTEFlags::U)
+       || !crate::mm::addr_flag(token, end,   crate::mm::PTEFlags::W | crate::mm::PTEFlags::U)
+    {
+        return -1;
+    }
+
+    // 准备要写回用户的结构
+    let now = get_time_us();
+    let tmp = TimeVal {
+        sec:  now / 1_000_000,
+        usec: now % 1_000_000,
+    };
+
+    let src: &[u8] = unsafe {
+        slice::from_raw_parts((&tmp as *const TimeVal) as *const u8, siz)
+    };
+    // 4. 拿到所有需要的用户页
+    let mut pages = UserBuffer::new(translated_byte_buffer(token, _ts as *const u8, siz)).into_iter();
+    // 5. 分段拷贝
+    let mut copied = 0;
+    while let Some(x) = pages.next() {
+        unsafe {
+            *x = src[copied];
+        }
+        copied += 1;
+    }
+    0
 }
 
 /// mmap syscall

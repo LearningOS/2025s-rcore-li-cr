@@ -24,6 +24,8 @@ pub struct ProcessControlBlock {
 }
 
 /// Inner of Process Control Block
+/// 
+/// 
 pub struct ProcessControlBlockInner {
     /// is zombie?
     pub is_zombie: bool,
@@ -49,6 +51,12 @@ pub struct ProcessControlBlockInner {
     pub semaphore_list: Vec<Option<Arc<Semaphore>>>,
     /// condvar list
     pub condvar_list: Vec<Option<Arc<Condvar>>>,
+    /// start deadlock detection
+    pub enable_deadlock_detection: bool,
+    /// mutex 
+    pub mutex_lock_test : LockTest,
+    /// semaphore 
+    pub semaphore_lock_test : LockTest,
 }
 
 impl ProcessControlBlockInner {
@@ -119,6 +127,9 @@ impl ProcessControlBlock {
                     mutex_list: Vec::new(),
                     semaphore_list: Vec::new(),
                     condvar_list: Vec::new(),
+                    enable_deadlock_detection: false,
+                    mutex_lock_test: LockTest::new(),
+                    semaphore_lock_test: LockTest::new(),
                 })
             },
         });
@@ -245,6 +256,9 @@ impl ProcessControlBlock {
                     mutex_list: Vec::new(),
                     semaphore_list: Vec::new(),
                     condvar_list: Vec::new(),
+                    enable_deadlock_detection: false,
+                    mutex_lock_test: LockTest::new(),
+                    semaphore_lock_test: LockTest::new(),
                 })
             },
         });
@@ -281,5 +295,83 @@ impl ProcessControlBlock {
     /// get pid
     pub fn getpid(&self) -> usize {
         self.pid.0
+    }
+}
+
+pub struct LockTest{
+    pub available: Vec<usize>,
+    pub allocation : Vec<Vec<usize>>,
+    pub need : Vec<Vec<usize>>,
+}
+
+impl LockTest {
+    pub fn new()-> Self{
+        Self{
+            available: Vec::new(),
+            allocation: Vec::new(),
+            need: Vec::new(),
+        }
+    }
+    pub fn add_available(&mut self, id : usize, num : usize){
+        while self.available.len() <= id {
+            self.available.push(0);
+        }
+        self.available[id] += num;
+    }
+    pub fn allocate(&mut self, tid : usize, id : usize) -> Result<(), ()>{
+        info!("{:?}", self.allocation);
+        info!("{:?}", self.need);
+        info!("{:?}", self.available);
+        info!("{:?} {:?}", tid, id);
+        while self.allocation.len() <= tid {
+            self.allocation.push(vec![0; self.available.len()]);
+        }
+        while self.need.len() <= tid {
+            self.need.push(vec![0; self.available.len()]);
+        }
+
+        self.need[tid][id] += 1;
+
+        if !self.calc(){
+            self.need[tid][id] -= 1;
+            return Err(());
+        }
+        if self.available[id] > 0{
+            self.allocation[tid][id] += 1;
+            self.available[id] -= 1;
+            self.need[tid][id] -= 1;
+        }
+        Ok(())
+    }
+    pub fn deallocate(&mut self, tid : usize, id : usize){
+        self.allocation[tid][id] -= 1;
+        self.available[id] += 1;
+    }
+    fn calc(& self) -> bool{
+        let mut left = self.available.clone();
+        let mut visited = vec![false; self.allocation.len()];
+        while self.need.iter().enumerate().fold(false, |acc, (id, need)| {
+                if visited[id]{
+                    return acc;
+                }
+                let mut ok = true;
+                for i in 0..need.len(){
+                    if need[i] > left[i]{
+                        ok = false;
+                        break;
+                    }
+                }
+                if !ok{
+                    return acc
+                }
+                visited[id] = true;
+                for (id, num) in self.allocation[id].iter().enumerate(){
+                    left[id] += num;
+                }
+                acc | true
+            }) 
+        {}
+
+        visited.iter().fold(true, | acc, x| acc&*x)
     }
 }
